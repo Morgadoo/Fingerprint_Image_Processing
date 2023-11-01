@@ -6,12 +6,15 @@ from PIL import Image
 import io
 import zipfile
 
-def process_image(image, brightness=0, contrast=1, use_noise_reduction=False, block_size=11, C=-2):
+def process_image(image, brightness=0, contrast=1, use_hist_eq=False, use_noise_reduction=False, block_size=11, C=-2):
     
     if len(image.shape) == 3:
         gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
     else:
         gray = image
+    
+    if use_hist_eq:
+        gray = cv2.equalizeHist(gray)
 
     gray = cv2.convertScaleAbs(gray, alpha=contrast, beta=brightness)
     
@@ -41,6 +44,7 @@ if uploaded_file:
         st.write(f"Settings for {file.name}")
         
         # Checkbox and Sliders
+        use_hist_eq = st.checkbox("Use Histogram Equalization", value=False, key=f"hist_eq_{file.name}")
         use_noise_reduction = st.checkbox("Use Noise Reduction", value=True, key=f"noise_{file.name}")
         
         brightness = st.slider("Brightness", -100, 100, 0, key=f"brightness_{file.name}")
@@ -50,7 +54,7 @@ if uploaded_file:
         C = st.slider("Adaptive Threshold C value", -15, 5, -3, key=f"C_{file.name}")
 
         # Process the image
-        binary_image = process_image(image_np, brightness, contrast, use_noise_reduction, block_size, C)     
+        binary_image = process_image(image_np, brightness, contrast, use_hist_eq, use_noise_reduction, block_size, C)     
         processed_images.append((f"binary_{file.name}.png", binary_image))
         
         # Create two columns display
