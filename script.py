@@ -5,38 +5,54 @@ import numpy as np
 from PIL import Image
 import io
 import zipfile
+import matplotlib.pyplot as plt
 
-def process_image(image, brightness=0, contrast=1, use_hist_eq=False, use_noise_reduction=False, block_size=11, C=-2):
-    
-    if len(image.shape) == 3:
-        gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-    else:
-        gray = image
-    
-    if use_hist_eq:
-        gray = cv2.equalizeHist(gray)
+class ImageProcessor:
+    def __init__(self, image):
+        self.image = image if len(image.shape) == 2 else cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
 
-    gray = cv2.convertScaleAbs(gray, alpha=contrast, beta=brightness)
-    
-    if use_noise_reduction:
-        gray = cv2.GaussianBlur(gray, (11, 11), 0)
-    
+    def equalize_histogram(self):
+        self.image = cv2.equalizeHist(self.image)
+
+    def auto_adjust_brightness(self):
+        mean_val = np.mean(self.image)
+        desired_brightness = 128
+        brightness_adjust_value = desired_brightness - mean_val
+        self.image = cv2.convertScaleAbs(self.image, alpha=1, beta=brightness_adjust_value)
+
+    def auto_adjust_contrast(self):
+        dst = np.zeros(self.image.shape, self.image.dtype)
+        self.image = cv2.normalize(self.image, dst, 0, 255, cv2.NORM_MINMAX)
+
+    def reduce_noise(self, kernel_size):
+        self.image = cv2.GaussianBlur(self.image, (kernel_size, kernel_size), 0)
+
+    def increase_resolution(self, scale_percent):
+        width = int(self.image.shape[1] * scale_percent / 100)
+        height = int(self.image.shape[0] * scale_percent / 100)
+        dim = (width, height)
+        # resize image
+        self.image = cv2.resize(self.image, dim, interpolation=cv2.INTER_LINEAR)
+
     # Adaptive Thresholding https://docs.opencv.org/3.4/d7/d4d/tutorial_py_thresholding.html
-    binary = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, block_size, C)
-    
+    def apply_adaptive_threshold(self, block_size, C):
+        self.image = cv2.adaptiveThreshold(self.image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, block_size, C)
+
     # Bitwise Operation https://docs.opencv.org/4.x/d0/d86/tutorial_py_image_arithmetics.html
-    inverted_binary = cv2.bitwise_not(binary)
-    
-    return inverted_binary
+    def invert_image(self):
+        self.image = cv2.bitwise_not(self.image)
+
+    def get_processed_image(self):
+        return self.image
 
 st.title("Fingerprint Image Processing")
 
-uploaded_file = st.file_uploader("Upload fingerprint images", type=["bmp"], accept_multiple_files=True)
+uploaded_files = st.file_uploader("Upload fingerprint images", type=["bmp"], accept_multiple_files=True)
 
 processed_images = []
 
-if uploaded_file:
-    for file in uploaded_file:
+if uploaded_files:
+    for file in uploaded_files:
         # Convert BMP to PNG using PIL
         image = Image.open(file).convert("L")  # Convert to grayscale
         image_np = np.array(image)
@@ -46,21 +62,60 @@ if uploaded_file:
         # Checkbox and Sliders
         use_hist_eq = st.checkbox("Use Histogram Equalization", value=False, key=f"hist_eq_{file.name}")
         use_noise_reduction = st.checkbox("Use Noise Reduction", value=True, key=f"noise_{file.name}")
-        
-        brightness = st.slider("Brightness", -100, 100, 0, key=f"brightness_{file.name}")
-        contrast = st.slider("Contrast", 0.5, 3.0, 1.0, key=f"contrast_{file.name}")
+        use_auto_brightness_contrast = st.checkbox("Use Auto Brightness and Contrast", value=False, key=f"auto_bright_cont_{file.name}")
+        use_increase_resolution = st.checkbox("Increase Resolution", value=False, key=f"res_{file.name}")
+        use_adaptive_threshold = st.checkbox("Use Adaptive Gaussian Threshold", value=True, key=f"adaptive_{file.name}")
+        use_invert = st.checkbox("Invert Image after Thresholding", value=True, key=f"invert_{file.name}")
+        show_histogram_option = st.checkbox("Show Histogram", value=False, key=f"hist_{file.name}")
 
-        block_size = st.slider("Adaptive Threshold Block Size (odd value)", 3, 31, 11, step=2, key=f"block_{file.name}")
-        C = st.slider("Adaptive Threshold C value", -15, 5, -3, key=f"C_{file.name}")
+        noise_size = 11
+        if use_noise_reduction:
+            noise_size = st.slider("Noise Reduction Kernel Size (odd value)", min_value=3, max_value=31, value=11, step=2, key=f"noise_kernel_{file.name}")
 
-        # Process the image
-        binary_image = process_image(image_np, brightness, contrast, use_hist_eq, use_noise_reduction, block_size, C)     
+        resolution_scale = 100
+        if use_increase_resolution:
+            resolution_scale = st.slider("Resolution Scale Percentage", min_value=100, max_value=300, value=100, step=10, key=f"res_scale_{file.name}")
+
+
+        block_size = 11
+        C = -2
+        if use_adaptive_threshold:
+            block_size = st.slider("Adaptive Gaussian Threshold Block Size (odd value)", 3, 31, 11, step=2, key=f"block_{file.name}")
+            C = st.slider("Adaptive Threshold C value", -15, 5, -2, key=f"C_{file.name}")
+
+        # Image processing
+        processor = ImageProcessor(image_np)
+        if use_hist_eq:
+            processor.equalize_histogram()
+        if use_auto_brightness_contrast:
+            processor.auto_adjust_brightness()
+            processor.auto_adjust_contrast()
+        if use_noise_reduction:
+            processor.reduce_noise(noise_size)
+        if use_increase_resolution:
+            processor.increase_resolution(resolution_scale)
+        if use_adaptive_threshold:
+            processor.apply_adaptive_threshold(block_size, C)
+        if use_invert:
+            processor.invert_image()
+
+        binary_image = processor.get_processed_image()
         processed_images.append((f"binary_{file.name}.png", binary_image))
         
-        # Create two columns display
+        # Display images
         col1, col2 = st.columns(2)
         col1.image(image, caption=f"Original Image - {file.name}", use_column_width=True)
-        col2.image(binary_image, caption="Binary Image", use_column_width=True, channels="GRAY")
+        col2.image(binary_image, caption="Processed Image", use_column_width=True)
+
+        # Histogram
+        if show_histogram_option:
+            hist = cv2.calcHist([binary_image], [0], None, [256], [0, 256])
+            plt.figure(figsize=(10, 4))
+            plt.plot(hist)
+            plt.title(f'Histogram for {file.name}')
+            plt.xlabel('Pixel value')
+            plt.ylabel('Frequency')
+            st.pyplot(plt)
 
     # ZIP all processed images
     zip_buffer = io.BytesIO()
