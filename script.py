@@ -62,8 +62,8 @@ if uploaded_files:
         # Checkbox and Sliders
         use_hist_eq = st.checkbox("Use Histogram Equalization", value=False, key=f"hist_eq_{file.name}")
         use_noise_reduction = st.checkbox("Use Noise Reduction", value=True, key=f"noise_{file.name}")
-        use_auto_brightness_contrast = st.checkbox("Use Auto Brightness and Contrast", value=False, key=f"auto_bright_cont_{file.name}")
-        use_increase_resolution = st.checkbox("Increase Resolution", value=False, key=f"res_{file.name}")
+        use_auto_brightness_contrast = st.checkbox("Use Auto Brightness and Contrast", value=True, key=f"auto_bright_cont_{file.name}")
+        use_increase_resolution = st.checkbox("Increase Resolution", value=True, key=f"res_{file.name}")
         use_adaptive_threshold = st.checkbox("Use Adaptive Gaussian Threshold", value=True, key=f"adaptive_{file.name}")
         use_invert = st.checkbox("Invert Image after Thresholding", value=True, key=f"invert_{file.name}")
         show_histogram_option = st.checkbox("Show Histogram", value=False, key=f"hist_{file.name}")
@@ -72,16 +72,16 @@ if uploaded_files:
         if use_noise_reduction:
             noise_size = st.slider("Noise Reduction Kernel Size (odd value)", min_value=3, max_value=31, value=11, step=2, key=f"noise_kernel_{file.name}")
 
-        resolution_scale = 100
+        resolution_scale = 200
         if use_increase_resolution:
-            resolution_scale = st.slider("Resolution Scale Percentage", min_value=100, max_value=300, value=100, step=10, key=f"res_scale_{file.name}")
+            resolution_scale = st.slider("Resolution Scale Percentage", min_value=100, max_value=300, value=resolution_scale, step=10, key=f"res_scale_{file.name}")
 
 
-        block_size = 11
-        C = -2
+        block_size = 21
+        C = -3
         if use_adaptive_threshold:
-            block_size = st.slider("Adaptive Gaussian Threshold Block Size (odd value)", 3, 31, 11, step=2, key=f"block_{file.name}")
-            C = st.slider("Adaptive Threshold C value", -15, 5, -2, key=f"C_{file.name}")
+            block_size = st.slider("Adaptive Gaussian Threshold Block Size (odd value)", 3, 31, block_size, step=2, key=f"block_{file.name}")
+            C = st.slider("Adaptive Threshold C value", -15, 5, C, key=f"C_{file.name}")
 
         # Image processing
         processor = ImageProcessor(image_np)
