@@ -70,7 +70,7 @@ if uploaded_files:
 
         noise_size = 7
         if use_noise_reduction:
-            noise_size = st.slider("Noise Reduction Kernel Size (odd value)", min_value=3, max_value=31, value=11, step=2, key=f"noise_kernel_{file.name}")
+            noise_size = st.slider("Noise Reduction Kernel Size (odd value)", min_value=3, max_value=31, value=noise_size, step=2, key=f"noise_kernel_{file.name}")
 
         resolution_scale = 200
         if use_increase_resolution:
