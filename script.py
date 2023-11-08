@@ -81,7 +81,7 @@ if uploaded_files:
         C = -3
         if use_adaptive_threshold:
             block_size = st.slider("Adaptive Gaussian Threshold Block Size (odd value)", 3, 31, block_size, step=2, key=f"block_{file.name}")
-            C = st.slider("Adaptive Threshold C value", -15, 5, C, key=f"C_{file.name}")
+            C = st.slider("Adaptive Threshold C value", -15, 15, C, key=f"C_{file.name}")
 
         # Image processing
         processor = ImageProcessor(image_np)
